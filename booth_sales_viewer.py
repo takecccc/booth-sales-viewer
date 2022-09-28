@@ -45,48 +45,79 @@ def main():
     print(df_base)
 
     print("analyze data")
+
     # 月毎の売り上げ
-    df = df_base.groupby(
-        [pd.Grouper(key="注文日時", freq="M"), "商品ID", "商品名"]
-        ).sum().reset_index()
-    df.rename(columns={"単価" : "売り上げ"}, inplace=True)
-    fig = px.bar(df, x="注文日時", y="売り上げ", color="商品名", title="月ごとの売り上げ")
-    fig.update_xaxes(tick0=df["注文日時"][0], dtick="M1", tickformat="%Y/%m")
-    fig.show()
+    def show_sales_per_month(df_base):
+        df = df_base.groupby(
+            [pd.Grouper(key="注文日時", freq="M"), "商品ID", "商品名"]
+            ).sum().reset_index()
+        df.rename(columns={"単価" : "売り上げ"}, inplace=True)
+        fig = px.bar(df, x="注文日時", y="売り上げ", color="商品名", title="月ごとの売り上げ")
+        fig.update_xaxes(tick0=df["注文日時"][0], dtick="M1", tickformat="%Y/%m")
+        fig.show()
 
     # 月毎の販売個数
-    df = df_base.groupby(
-        [pd.Grouper(key="注文日時", freq="M"), "商品ID", "商品名"]
-        ).count()["単価"].reset_index()
-    df.rename(columns={"単価" : "販売個数"}, inplace=True)
-    fig = px.bar(df, x="注文日時", y="販売個数", color="商品名", title="月ごとの販売個数")
-    print(df)
-    fig.update_xaxes(tick0=df["注文日時"][0], dtick="M1", tickformat="%Y/%m")
-    fig.show()
-    
+    def show_count_per_month(df_base):
+        df = df_base.groupby(
+            [pd.Grouper(key="注文日時", freq="M"), "商品ID", "商品名"]
+            )[["単価", "BOOST"]].count().reset_index()
+        df.rename(columns={"単価" : "販売個数"}, inplace=True)
+        fig = px.bar(df, x="注文日時", y="販売個数", color="商品名", title="月ごとの販売個数")
+        fig.update_xaxes(tick0=df["注文日時"][0], dtick="M1", tickformat="%Y/%m")
+        fig.show()
+
     # 商品毎の売り上げ
-    df = df_base.groupby(
-        ["商品ID", "商品名"]
-        ).sum().reset_index()
-    df.rename(columns={"単価" : "売り上げ"}, inplace=True)
-    fig = px.pie(df, names="商品名", values="売り上げ", title="商品毎の売り上げ")
-    fig.show()
+    def show_sales_per_product(df_base):
+        df = df_base.groupby(
+            ["商品ID", "商品名"]
+            )[["単価", "BOOST"]].sum().reset_index()
+        df.rename(columns={"単価" : "売り上げ"}, inplace=True)
+        fig = px.pie(df, names="商品名", values="売り上げ", title="商品毎の売り上げ")
+        fig.show()
 
     # 商品毎の販売個数
-    df = df_base.groupby(
-        ["商品ID", "商品名"]
-        ).count().reset_index()
-    df.rename(columns={"単価" : "販売個数"}, inplace=True)
-    fig = px.pie(df, names="商品名", values="販売個数", title="商品毎の販売個数")
-    fig.show()
+    def show_count_per_product(df_base):
+        df = df_base.groupby(
+            ["商品ID", "商品名"]
+            ).count().reset_index()
+        df.rename(columns={"単価" : "販売個数"}, inplace=True)
+        fig = px.pie(df, names="商品名", values="販売個数", title="商品毎の販売個数")
+        fig.show()
 
+    # 売上推移
+    def show_sales_cumsum(df_base):
+        t_index = pd.date_range(
+                start=df_base["注文日時"].min().date(),
+                end=df_base["注文日時"].max().date(),
+                freq="M",
+                name="注文日時")
+        df = df_base.copy()
+        df = df.set_index("注文日時").groupby(
+            ["商品ID", "商品名"]
+            )[["単価", "BOOST"]].apply(
+                lambda x: x.resample("M").sum().reindex(t_index, fill_value=0).cumsum()
+            ).reset_index()
+        df.rename(columns={"単価" : "売り上げ"}, inplace=True)
+        print(df)
+        fig = px.bar(df, x="注文日時", y="売り上げ", color="商品名", title="累積売上")
+        fig.update_xaxes(tick0=df["注文日時"][0], dtick="M1", tickformat="%Y/%m")
+        fig.show()
+    
     # ユーザー毎の購入額
-    df = df_base.groupby(
-        ["ユーザー識別コード", "商品ID", "商品名"]
-    ).sum().reset_index()
-    df.rename(columns={"単価" : "購入額"}, inplace=True)
-    fig = px.bar(df, x="ユーザー識別コード", y="購入額", color="商品名", title="ユーザー毎の購入額")
-    fig.show()
+    def show_purchase_per_user(df_base):
+        df = df_base.groupby(
+            ["ユーザー識別コード", "商品ID", "商品名"]
+        ).sum().reset_index()
+        df.rename(columns={"単価" : "購入額"}, inplace=True)
+        fig = px.bar(df, x="ユーザー識別コード", y="購入額", color="商品名", title="ユーザー毎の購入額")
+        fig.show()
+    
+    show_sales_per_month(df_base)
+    show_count_per_month(df_base)
+    show_sales_per_product(df_base)
+    show_count_per_product(df_base)
+    show_sales_cumsum(df_base)
+    show_purchase_per_user(df_base)
 
     return 0
 
